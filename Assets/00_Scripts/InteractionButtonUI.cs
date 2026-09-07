@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System;
 using UnityEngine.UI;
 
@@ -8,38 +8,37 @@ public class InteractionButtonUI : MonoBehaviour
     public Image IconImage; // 버튼 아이콘을 표시할 Image 컴포넌트 참조
     public Text ButtonName; // 버튼에 표시할 텍스트(이름) 참조
 
-    public Action_State actionState; // 이 버튼이 어떤 액션에 대응되는지 (런타임에 Initialize로 설정됨)
-    private Button button; // 실제 클릭 이벤트를 받을 Button 컴포넌트
+    Button button; // 내부에서 사용할 Button 컴포넌트 캐시
+
+    Action_State m_Action; // 버튼에 연결된 동작 상태를 저장하는 필드
 
     private void Awake()
     {
-        button = GetComponent<Button>(); // 같은 게임 오브젝트의 Button 컴포넌트 획득
-        if (button != null)
-        {
-            button.onClick.AddListener(OnClickButton); // 클릭 시 OnClickButton 호출되도록 리스너 등록
-        }
-        else
-        {
-            Debug.LogWarning($"{gameObject.name}에 Button 컴포넌트가 없어 클릭 이벤트를 등록할 수 없습니다.");
-        }
+        // 현재 게임 오브젝트에서 Button 컴포넌트를 찾아 캐시
+        button = GetComponent<Button>();
     }
 
-    // InteractionUI가 상태별로 버튼을 구성할 때 호출 - 이 버튼이 어떤 액션을 실행할지 지정
+    // 특정 상태로 버튼을 초기화하는 공개 메서드
     public void Initialize(Action_State state)
     {
-        actionState = state; // 전달받은 액션 상태 저장
-    }
+        // 전달된 상태를 내부 필드에 저장
+        m_Action = state;
 
-    // 버튼 클릭 시 해당 Action_State에 등록된 액션을 실행
-    private void OnClickButton()
-    {
-        if (ActionHolder.Actions.TryGetValue(actionState, out Action action) && action != null)
+        // 상태가 None이면 비활성 처리
+        if (m_Action == Action_State.None)
         {
-            action.Invoke(); // 등록된 델리게이트 실행
+            // 이미지 색을 검정 ( 알파 유지 )으로 변경하여 비활성화 표시
+            GetComponent<Image>().color = new Color(0, 0, 0, GetComponent<Image>().color.a);
+            return; // 초기화 중단
         }
-        else
-        {
-            Debug.LogWarning($"Action_State {actionState}에 등록된 액션이 없습니다.");
-        }
+
+        // 아이콘 이미지 게임 오브젝트 활성화
+        IconImage.gameObject.SetActive(true);
+        // 상태 이름으로 스프라이트를 가져와 아이콘에 할당
+        IconImage.sprite = ActionHolder.GetAtlas(state.ToString());
+
+        button.onClick.RemoveAllListeners(); // 기존 클릭 리스너 모두 제거(중복 방지)
+        // 클릭시 해당 상태에 대응하는 액션 실행하도록 리스너 추가
+        button.onClick.AddListener(() => ActionHolder.Actions[state]());
     }
 }
